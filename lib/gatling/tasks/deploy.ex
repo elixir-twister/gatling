@@ -17,8 +17,9 @@ defmodule Mix.Tasks.Gatling.Deploy do
 
   @spec run([project]) :: nil
   def run([]) do
-    project = Mix.Shell.IO.prompt("Please enter a project name:")
-    deploy(project)
+    Mix.Shell.IO.prompt("Please enter a project name:")
+    |> String.trim()
+    |> deploy()
   end
 
   @spec run([project]) :: gatling_env
@@ -31,7 +32,8 @@ defmodule Mix.Tasks.Gatling.Deploy do
   The main function of `Mix.Tasks.Gatling.Deploy`
   """
   def deploy(project) do
-    Gatling.env(project, port: :find)
+    project
+    |> Gatling.env(port: :find)
     |> call(:mix_deps_get)
     |> call(:mix_compile)
     |> call(:mix_digest)
@@ -50,7 +52,7 @@ defmodule Mix.Tasks.Gatling.Deploy do
   @doc """
   Run the mix task `mix deps.get` in the project being deployed
   """
-  def mix_deps_get(%Gatling.Env{}=env) do
+  def mix_deps_get(%Gatling.Env{} = env) do
     bash("mix", ~w[deps.get], cd: env.build_dir)
     env
   end
@@ -59,7 +61,7 @@ defmodule Mix.Tasks.Gatling.Deploy do
   @doc """
   Compile the application being deployed
   """
-  def mix_compile(%Gatling.Env{}=env) do
+  def mix_compile(%Gatling.Env{} = env) do
     bash("mix", ~w[compile --force], cd: env.build_dir)
     env
   end
@@ -68,9 +70,9 @@ defmodule Mix.Tasks.Gatling.Deploy do
   @doc """
   Create static phoenix files if the project is a phoenix project
   """
-  def mix_digest(%Gatling.Env{}=env) do
-    if (Enum.find(env.available_tasks, fn(task)-> task == "phoenix.digest" end)) do
-      bash("mix", ~w[phoenix.digest], cd: env.build_dir)
+  def mix_digest(%Gatling.Env{} = env) do
+    if (Enum.find(env.available_tasks, fn(task)-> task == "phx.digest" end)) do
+      bash("mix", ~w[phx.digest], cd: env.build_dir)
     end
     env
   end
@@ -80,7 +82,7 @@ defmodule Mix.Tasks.Gatling.Deploy do
   Look look for `/rel/config.exs`
   If it doesn't exist, run `mix release.init`
   """
-  def mix_release_init(%Gatling.Env{}=env) do
+  def mix_release_init(%Gatling.Env{} = env) do
     if File.exists?(env.release_config_path) do
       log("#{env.release_config_path} found")
     else
@@ -93,7 +95,7 @@ defmodule Mix.Tasks.Gatling.Deploy do
   @doc """
   Generate a release of the deploying project with [Distillery](http://github.com/bitwalker/distillery)
   """
-  def mix_release(%Gatling.Env{}=env) do
+  def mix_release(%Gatling.Env{} = env) do
     bash("mix", ~w[release --warnings-as-errors --env=prod], cd: env.build_dir)
     env
   end
@@ -102,7 +104,7 @@ defmodule Mix.Tasks.Gatling.Deploy do
   @doc """
   Create a directory in the build path of the `project`
   """
-  def make_deploy_dir(%Gatling.Env{}=env) do
+  def make_deploy_dir(%Gatling.Env{} = env) do
     File.mkdir_p(env.deploy_dir)
     env
   end
@@ -111,7 +113,7 @@ defmodule Mix.Tasks.Gatling.Deploy do
   @doc """
   Copy the generated release into the deployment directory
   """
-  def copy_release_to_deploy(%Gatling.Env{}=env) do
+  def copy_release_to_deploy(%Gatling.Env{} = env) do
     File.cp!(env.built_release_path, env.deploy_path)
     env
   end
@@ -182,10 +184,8 @@ defmodule Mix.Tasks.Gatling.Deploy do
   and run the seeds file.
   """
   def mix_ecto_setup(%Gatling.Env{}=env) do
-    if (Enum.find(env.available_tasks, fn(task)-> task == "ecto.setup" end)) do
-      # Provide PORT env variable for ecto.setup as it is needed for the seeds to run.
-      bash("mix", ~w[ecto.setup], cd: env.build_dir, env: [{"PORT", to_string(env.available_port)}])
-    end
+    bash("mix", ~w[ecto.create],  cd: env.build_dir)
+    bash("mix", ~w[ecto.migrate], cd: env.build_dir)
     env
   end
 
@@ -225,5 +225,4 @@ defmodule Mix.Tasks.Gatling.Deploy do
 
     nil
   end
-
 end

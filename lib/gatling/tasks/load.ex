@@ -21,8 +21,9 @@ defmodule Mix.Tasks.Gatling.Load do
 
   @spec run([project]) :: nil
   def run([]) do
-    project = Mix.Shell.IO.prompt("Please enter a project name:")
-    load(project)
+    Mix.Shell.IO.prompt("Please enter a project name:")
+    |> String.trim()
+    |> load()
   end
 
   def run([project]) do
@@ -65,5 +66,4 @@ defmodule Mix.Tasks.Gatling.Load do
     File.write!(path, file)
     File.chmod!(path, 0o777)
   end
-
 end
